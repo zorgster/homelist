@@ -16,7 +16,7 @@ const TABS = ['shop', 'todo', 'trades', 'bdays'];
 const tabFromHash = () => {
   const h = location.hash.replace('#', '');
   return TABS.includes(h) ? h : 'shop';
-};
+}; 
 
 export default function App() {
   const { isLoggedIn } = useHousehold();
