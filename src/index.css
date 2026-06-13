@@ -182,6 +182,64 @@ header { flex-shrink: 0; display: flex; align-items: center; justify-content: sp
 .refresh-key-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-family: var(--ff-b); font-size: .75rem; padding: 2px 0; text-decoration: underline; text-underline-offset: 3px; transition: color var(--ease); }
 .refresh-key-btn:active { color: var(--accent); }
 
+/* ── HEADER HOUSEHOLD SWITCHER BUTTON ── */
+.hhname-btn { background: none; border: none; cursor: default; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 6px; transition: background var(--ease); }
+.hhname-btn.switchable { cursor: pointer; }
+.hhname-btn.switchable:active { background: var(--surface2); }
+.switch-chevron { font-size: .75rem; color: var(--muted); line-height: 1; }
+.pending-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.settings-btn { position: relative; }
+.knock-badge { position: absolute; top: -3px; right: -3px; background: var(--accent); color: var(--on-accent); font-size: .6rem; font-weight: 700; min-width: 15px; height: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
+
+/* ── HOUSEHOLD SWITCHER MODAL ── */
+.switcher-modal { max-height: 85dvh; overflow-y: auto; }
+.switcher-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.switcher-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: 12px; background: var(--surface2); border: 1.5px solid transparent; cursor: pointer; transition: all var(--ease); }
+.switcher-row:active { transform: scale(.98); }
+.switcher-row.active { border-color: var(--accent); background: var(--accent-pale); }
+.switcher-row.pending { opacity: .75; cursor: default; }
+.switcher-info { display: flex; flex-direction: column; gap: 2px; }
+.switcher-name { font-size: .9rem; font-weight: 500; }
+.switcher-role { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.switcher-pending { font-size: .7rem; color: var(--accent); }
+.switcher-check { color: var(--accent); font-size: .9rem; }
+.switcher-arrow { color: var(--muted); font-size: .85rem; }
+.switcher-add-row { display: flex; gap: 8px; margin-top: 4px; }
+.switcher-add-row .btn { flex: 1; font-size: .78rem; }
+.switcher-form { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 8px; }
+.switcher-form-btns { display: flex; gap: 8px; }
+.switcher-form-btns .btn { flex: 1; }
+
+/* ── KNOCK / WAITING ── */
+.knock-waiting { text-align: center; padding: 8px 0 4px; }
+.knock-icon { font-size: 2.2rem; margin-bottom: 8px; }
+.knock-waiting h3 { font-family: var(--ff-d); font-size: 1.2rem; font-weight: 300; margin-bottom: 8px; }
+.knock-waiting p { font-size: .82rem; color: var(--muted); line-height: 1.6; }
+
+/* ── PENDING KNOCKS ── */
+.pending-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.pending-section h4 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
+.pending-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(232,168,56,.06); border: 1px solid rgba(232,168,56,.2); border-radius: 10px; margin-bottom: 6px; }
+.pending-name { font-size: .85rem; font-weight: 500; }
+.pending-actions { display: flex; gap: 6px; }
+.btn-sm { font-size: .72rem !important; padding: 5px 10px !important; }
+
+/* ── MEMBERS ── */
+.members-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.members-section h4 { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+.member-row { padding: 8px 10px; border-radius: 10px; background: var(--surface2); margin-bottom: 5px; }
+.member-info { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.member-name { font-size: .85rem; font-weight: 500; flex: 1; }
+.role-badge { font-size: .65rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.badge-primary { background: rgba(232,168,56,.15); color: var(--accent); border: 1px solid rgba(232,168,56,.3); }
+.badge-admin   { background: rgba(74,222,128,.1);  color: var(--green);  border: 1px solid rgba(74,222,128,.25); }
+.badge-editor  { background: var(--surface);       color: var(--muted);  border: 1px solid var(--border); }
+.badge-viewer  { background: var(--surface);       color: var(--muted);  border: 1px solid var(--border); }
+.member-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.role-select { background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; color: var(--text); font-size: .72rem; padding: 3px 6px; cursor: pointer; }
+.btn-danger { color: var(--red) !important; }
+.btn-danger:active { border-color: var(--red) !important; }
+
 /* ── CAT EDITOR ── */
 .cat-editor-modal { max-height: 88dvh; overflow: hidden; }
 .cat-editor-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }

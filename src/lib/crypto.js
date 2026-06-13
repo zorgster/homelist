@@ -2,7 +2,6 @@ import raw from './wordlist.txt?raw';
 const WORDLIST = raw.trim().split('\n');
 
 // Pick 4 random words from the BIP39 wordlist using the browser CSPRNG.
-// 2048 words → 2048^4 ≈ 2^44 combinations before PBKDF2 hardening.
 export function genToken() {
   const idx = new Uint32Array(4);
   crypto.getRandomValues(idx);
@@ -11,7 +10,6 @@ export function genToken() {
 
 // Normalise a user-typed passphrase into a canonical token.
 // Accepts words separated by spaces, dashes, or commas.
-// Returns "word1-word2-word3" or null if fewer than 3 alpha words found.
 export function normalizePassphrase(input) {
   const words = (input || '').trim().toLowerCase()
     .split(/[\s\-_,]+/)
@@ -19,17 +17,22 @@ export function normalizePassphrase(input) {
   return words.length >= 4 ? words.slice(0, 4).join('-') : null;
 }
 
+// 4 words → SHA-256 → household address (Firestore document ID).
 export async function tokenToHouseholdId(tok) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('homelist|' + tok));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function deriveEncKey(tok) {
-  const km = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(tok), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: new TextEncoder().encode('homelist-v1'), iterations: 100000, hash: 'SHA-256' },
-    km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+// Generate a random 256-bit key (base64) to store in Firestore.
+export function genRawKey() {
+  const raw = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...raw));
+}
+
+// Import a base64 key string as a non-extractable AES-GCM CryptoKey.
+export async function importEncKey(b64) {
+  const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
 export async function enc(obj, key) {

@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useHousehold } from './context/HouseholdContext';
-import Setup            from './components/Setup';
-import Header           from './components/Header';
-import TabBar           from './components/TabBar';
-import Toast            from './components/Toast';
-import ShoppingTab      from './components/shopping/ShoppingTab';
-import TodoTab          from './components/todos/TodoTab';
-import TradesTab        from './components/trades/TradesTab';
-import BirthdaysTab     from './components/birthdays/BirthdaysTab';
-import CategoryEditor   from './components/shopping/CategoryEditor';
-import HouseholdSettings from './components/settings/HouseholdSettings';
+import Setup              from './components/Setup';
+import Header             from './components/Header';
+import TabBar             from './components/TabBar';
+import Toast              from './components/Toast';
+import ShoppingTab        from './components/shopping/ShoppingTab';
+import TodoTab            from './components/todos/TodoTab';
+import TradesTab          from './components/trades/TradesTab';
+import BirthdaysTab       from './components/birthdays/BirthdaysTab';
+import CategoryEditor     from './components/shopping/CategoryEditor';
+import HouseholdSettings  from './components/settings/HouseholdSettings';
+import HouseholdSwitcher  from './components/HouseholdSwitcher';
 
 const TABS = ['shop', 'todo', 'trades', 'bdays'];
 const tabFromHash = () => {
@@ -22,6 +23,7 @@ export default function App() {
   const [activeTab, setActiveTab]         = useState(tabFromHash);
   const [settingsOpen, setSettingsOpen]   = useState(false);
   const [catEditorOpen, setCatEditorOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen]   = useState(false);
 
   useEffect(() => {
     const onPop = () => setActiveTab(tabFromHash());
@@ -45,7 +47,7 @@ export default function App() {
 
   return (
     <div id="main-wrapper">
-      <Header onOpenSettings={() => setSettingsOpen(true)} />
+      <Header onOpenSettings={() => setSettingsOpen(true)} onOpenSwitcher={() => setSwitcherOpen(true)} />
 
       <ShoppingTab  active={activeTab === 'shop'} />
       <TodoTab      active={activeTab === 'todo'} />
@@ -65,6 +67,7 @@ export default function App() {
         <CategoryEditor isOpen onClose={() => setCatEditorOpen(false)} />
       )}
 
+      <HouseholdSwitcher isOpen={switcherOpen} onClose={() => setSwitcherOpen(false)} />
       <Toast />
     </div>
   );

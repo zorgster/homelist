@@ -1,13 +1,97 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Household data keyed by SHA-256(token) — unguessable without the secret.
-    // All documents are AES-GCM-256 encrypted client-side; server sees only ciphertext.
-    match /households/{householdId}/{document=**} {
-      allow read, write: if request.auth != null;
+
+    function isMember(hid) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid));
     }
+
+    function memberRole(hid) {
+      return get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isPrimary(hid) {
+      return isMember(hid) && memberRole(hid) == 'primary';
+    }
+
+    function canInvite(hid) {
+      return isMember(hid) && memberRole(hid) in ['primary', 'admin'];
+    }
+
+    function canEdit(hid) {
+      return isMember(hid) && memberRole(hid) in ['primary', 'admin', 'editor'];
+    }
+
+    function inviteOpen(hid) {
+      return get(/databases/$(database)/documents/households/$(hid)/profile/meta).data.inviteOpen == true;
+    }
+
+    match /households/{hid} {
+
+      // Knock — only allowed when the household has opened their doorbell.
+      // The joiner can read/delete their own pending doc (to check status or withdraw).
+      match /pending/{uid} {
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && inviteOpen(hid);
+        allow read:   if (request.auth != null && request.auth.uid == uid)
+          || canInvite(hid);
+        allow delete: if (request.auth != null && request.auth.uid == uid)
+          || canInvite(hid);
+      }
+
+      // Members — any authenticated user can read their own record to check status on boot.
+      match /members/{uid} {
+        allow read:  if (request.auth != null && request.auth.uid == uid) || isMember(hid);
+        allow write: if canInvite(hid);
+      }
+
+      // Encryption key — only members can read it; only primary can rotate it.
+      match /profile/encKey {
+        allow read:  if isMember(hid);
+        allow write: if isPrimary(hid);
+      }
+
+      // Household metadata (name, inviteOpen flag).
+      // Any authenticated user can read — lets knockers confirm they found the right door.
+      match /profile/meta {
+        allow read:  if request.auth != null;
+        allow write: if canInvite(hid);
+      }
+
+      // Shopping items
+      match /items/{doc} {
+        allow read: if isMember(hid);
+        allow write: if canEdit(hid);
+      }
+
+      // Trades
+      match /trades/{doc} {
+        allow read: if isMember(hid);
+        allow write: if canEdit(hid);
+      }
+
+      // Birthdays
+      match /bdays/{doc} {
+        allow read: if isMember(hid);
+        allow write: if canEdit(hid);
+      }
+
+      // Todos
+      match /todos/{doc} {
+        allow read: if isMember(hid);
+        allow write: if canEdit(hid);
+      }
+
+      // Categories, household name, and other meta docs
+      match /meta/{doc} {
+        allow read: if isMember(hid);
+        allow write: if canEdit(hid);
+      }
+    }
+
     // Google users store their household token here for cross-device recovery.
-    // Only the authenticated user can read or write their own profile.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

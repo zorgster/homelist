@@ -15,7 +15,7 @@ function WordInput({ value, onChange, onEnter, placeholder, autoFocus }) {
   return (
     <input
       type="text"
-      placeholder={placeholder || 'four words, e.g. horse waffle somerset'}
+      placeholder={placeholder || 'four words, e.g. horse waffle somerset bloom'}
       value={value}
       autoFocus={autoFocus}
       autoComplete="off"
@@ -29,72 +29,191 @@ function WordInput({ value, onChange, onEnter, placeholder, autoFocus }) {
 
 export default function Setup() {
   const {
-    createHousehold, joinHousehold, pendingJoinToken, toast,
-    signInWithGoogle, signInAnonymous,
+    createHousehold, knockOnHousehold, withdrawKnock,
+    pendingJoinToken, isKnocking, hhName, token,
+    emailLinkSent, needsEmailForLink,
+    toast, signInWithGoogle, signInAnonymous,
+    sendMagicLink, completeEmailLink,
     authMode, firebaseUser,
   } = useHousehold();
 
-  const [generated, setGenerated] = useState(() => genToken());
-  const [hhName, setHhName]       = useState('');
-  const [joinWords, setJoinWords] = useState('');
-  const [joinName, setJoinName]   = useState('');
+  const [generated, setGenerated]   = useState(() => genToken());
+  const [newHhName, setNewHhName]   = useState('');
+  const [joinWords, setJoinWords]   = useState('');
+  const [knockerName, setKnockerName] = useState('');
+  const [email, setEmail]           = useState('');
+  const [emailForLink, setEmailForLink] = useState(''); // cross-device link completion
 
-  // ── Step 1: choose auth method ──
-  if (!firebaseUser) {
+  // ── Cross-device magic link: needs email to complete ──
+  if (needsEmailForLink) {
     return (
       <div id="setup">
         <Hero />
         <div className="card">
-          {pendingJoinToken && (
-            <div className="lock-badge">🔒 Encrypted join link detected</div>
-          )}
+          <p style={{ fontSize: '.85rem', color: 'var(--muted)', marginBottom: 8 }}>
+            Enter the email address you used to request the sign-in link.
+          </p>
+          <div className="group">
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={emailForLink}
+              autoFocus
+              onChange={e => setEmailForLink(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && completeEmailLink(emailForLink)}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={() => completeEmailLink(emailForLink)}>
+            Sign in →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Magic link sent — waiting for click ──
+  if (emailLinkSent) {
+    return (
+      <div id="setup">
+        <Hero />
+        <div className="card">
+          <div className="knock-waiting">
+            <div className="knock-icon">✉️</div>
+            <h3>Check your email</h3>
+            <p>We sent a sign-in link to <strong>{email}</strong>.<br />Click it to continue.</p>
+          </div>
+          <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => sendMagicLink(email)}>
+            Resend link
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Step 1: no auth yet ──
+  if (!firebaseUser) {
+    async function handleSendLink() {
+      if (!email.trim() || !email.includes('@')) { toast('Enter a valid email address'); return; }
+      await sendMagicLink(email.trim());
+    }
+
+    return (
+      <div id="setup">
+        <Hero />
+        <div className="card">
+          {pendingJoinToken && <div className="lock-badge">🔔 Join link detected</div>}
+
           <button className="btn btn-primary" onClick={signInWithGoogle}>
             Sign in with Google
           </button>
+
           <div className="divider">or</div>
-          <button className="btn btn-ghost" onClick={signInAnonymous}>
-            Continue without an account
+
+          <div className="group">
+            <label>Sign in with email</label>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              autoComplete="email"
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendLink()}
+            />
+            <button
+              className="btn btn-ghost"
+              onClick={handleSendLink}
+              style={{ opacity: email.includes('@') ? 1 : 0.4, pointerEvents: email.includes('@') ? 'auto' : 'none' }}
+            >
+              Send magic link →
+            </button>
+          </div>
+
+          <div className="divider">or</div>
+
+          <button className="btn btn-ghost" onClick={signInAnonymous} style={{ fontSize: '.8rem' }}>
+            Just joining someone's household →
           </button>
         </div>
         <p className="setup-note">
-          Google sign-in lets you recover your household from any device.<br />
-          Without an account, your four-word key is the only way back in — remember it.
+          An account lets you recover and switch between households from any device.
         </p>
       </div>
     );
   }
 
-  // ── Pending join via URL fragment ──
-  if (pendingJoinToken) {
+  // ── Waiting for knock approval ──
+  if (isKnocking) {
     return (
       <div id="setup">
         <Hero />
         <div className="card">
-          <div className="lock-badge">
-            🔒 Encrypted join link — your list is end-to-end encrypted
+          <div className="knock-waiting">
+            <div className="knock-icon">🔔</div>
+            <h3>Waiting at the door…</h3>
+            <p>
+              Your request to join <strong>{hhName}</strong> has been sent.
+              A household member needs to let you in.
+            </p>
+            {token && (
+              <div className="short-id" style={{ margin: '12px 0' }}>
+                {shortId(token)}
+                <small>Household address</small>
+              </div>
+            )}
           </div>
+          <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => withdrawKnock()}>
+            Withdraw request
+          </button>
+        </div>
+        {authMode === 'google' && firebaseUser && (
+          <p className="setup-note">Signed in as {firebaseUser.email}</p>
+        )}
+        {authMode === 'email' && firebaseUser && (
+          <p className="setup-note">Signed in as {firebaseUser.email}</p>
+        )}
+      </div>
+    );
+  }
+
+  // ── Pending join via URL (confirm knock) ──
+  if (pendingJoinToken) {
+    async function handleKnock() {
+      let tok = null;
+      if (pendingJoinToken.includes('#')) {
+        tok = new URLSearchParams(pendingJoinToken.split('#')[1]).get('join') || null;
+      }
+      if (!tok) tok = normalizePassphrase(pendingJoinToken);
+      if (!tok) tok = pendingJoinToken;
+      await knockOnHousehold(tok, knockerName || 'Someone');
+    }
+
+    return (
+      <div id="setup">
+        <Hero />
+        <div className="card">
+          <div className="lock-badge">🔔 You've been invited — knock to join</div>
           {authMode === 'anonymous' && (
             <div className="anon-warning">
-              ⚠ Without an account, your four-word key is the only way back in if you clear your browser data.
+              ⚠ Without an account you can join but not create households.
             </div>
           )}
           <div className="group">
             <label>Your name for this household</label>
             <input
               type="text"
-              placeholder="e.g. The Smiths"
+              placeholder="e.g. Alex"
               maxLength={30}
-              value={joinName}
-              onChange={e => setJoinName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && joinHousehold(pendingJoinToken, joinName)}
+              value={knockerName}
+              onChange={e => setKnockerName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleKnock()}
               autoFocus
             />
           </div>
-          <button className="btn btn-primary" onClick={() => joinHousehold(pendingJoinToken, joinName)}>
-            Join household →
+          <button className="btn btn-primary" onClick={handleKnock}>
+            Knock on the door →
           </button>
         </div>
-        {authMode === 'google' && firebaseUser && (
+        {firebaseUser?.email && (
           <p className="setup-note">Signed in as {firebaseUser.email}</p>
         )}
       </div>
@@ -104,53 +223,62 @@ export default function Setup() {
   // ── Step 2: create or join ──
 
   async function handleCreate() {
-    if (!hhName.trim()) { toast('Enter a name for your household'); return; }
-    await createHousehold(hhName.trim(), generated);
+    if (authMode === 'anonymous') {
+      toast('You need an account to create a household');
+      return;
+    }
+    if (!newHhName.trim()) { toast('Enter a name for your household'); return; }
+    await createHousehold(newHhName.trim(), generated);
   }
 
   async function handleJoin() {
-    // Accept a join URL or raw words
     let tok = null;
     if (joinWords.includes('#')) {
       tok = new URLSearchParams(joinWords.split('#')[1]).get('join') || null;
     }
     if (!tok) tok = normalizePassphrase(joinWords);
     if (!tok) { toast('Enter at least four words to join'); return; }
-    await joinHousehold(tok, 'My Household');
+    await knockOnHousehold(tok, 'Someone');
   }
+
+  const isAnon = authMode === 'anonymous';
 
   return (
     <div id="setup">
       <Hero />
-      {authMode === 'anonymous' && (
+      {isAnon && (
         <div className="anon-warning">
-          ⚠ Without an account, your four-word key is the only way back in. Remember it.
+          ⚠ You're in guest mode — you can join households but not create them.
         </div>
       )}
       <div className="card">
-        <div className="group">
-          <label>Create a new household</label>
-          <div className="generated-key">
-            <span>{shortId(generated)}</span>
-            <button className="regen-btn" onClick={() => setGenerated(genToken())} title="Generate new words">↻</button>
-          </div>
-          <small style={{ color: 'var(--muted)', fontSize: '.72rem' }}>
-            Your household key — share these words to invite someone
-          </small>
-          <input
-            type="text"
-            placeholder="Household name, e.g. The Smiths"
-            maxLength={30}
-            value={hhName}
-            onChange={e => setHhName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            autoFocus
-          />
-          <button className="btn btn-primary" onClick={handleCreate}>
-            Create household →
-          </button>
-        </div>
-        <div className="divider">or join an existing one</div>
+        {!isAnon && (
+          <>
+            <div className="group">
+              <label>Create a new household</label>
+              <div className="generated-key">
+                <span>{shortId(generated)}</span>
+                <button className="regen-btn" onClick={() => setGenerated(genToken())} title="Generate new words">↻</button>
+              </div>
+              <small style={{ color: 'var(--muted)', fontSize: '.72rem' }}>
+                Your four-word address — share these to invite someone
+              </small>
+              <input
+                type="text"
+                placeholder="Household name, e.g. The Smiths"
+                maxLength={30}
+                value={newHhName}
+                onChange={e => setNewHhName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                autoFocus
+              />
+              <button className="btn btn-primary" onClick={handleCreate}>
+                Create household →
+              </button>
+            </div>
+            <div className="divider">or join an existing one</div>
+          </>
+        )}
         <div className="group">
           <label>Join with four words or a join link</label>
           <WordInput
@@ -158,20 +286,19 @@ export default function Setup() {
             onChange={setJoinWords}
             onEnter={handleJoin}
             placeholder="your four words or paste a join link…"
+            autoFocus={isAnon}
           />
           <button
             className="btn btn-ghost"
             onClick={handleJoin}
             style={{ opacity: joinWords.trim() ? 1 : 0.4, pointerEvents: joinWords.trim() ? 'auto' : 'none' }}
           >
-            Join household →
+            Knock on the door →
           </button>
         </div>
       </div>
-      {authMode === 'google' && firebaseUser ? (
+      {firebaseUser?.email && (
         <p className="setup-note">Signed in as {firebaseUser.email}</p>
-      ) : (
-        <p className="setup-note">Data is end-to-end encrypted — the server never sees plaintext.</p>
       )}
     </div>
   );

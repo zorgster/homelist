@@ -8,8 +8,12 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  linkWithPopup,
   signInAnonymously,
   onAuthStateChanged,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
 } from 'firebase/auth';
 
 const app = initializeApp({
@@ -28,4 +32,8 @@ export const db = initializeFirestore(app, {
 });
 
 export const auth = getAuth(app);
-export { GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged };
+export {
+  GoogleAuthProvider, signInWithPopup, linkWithPopup,
+  signInAnonymously, onAuthStateChanged,
+  sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+};
