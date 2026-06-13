@@ -18,7 +18,7 @@ const tabFromHash = () => {
 };
 
 export default function App() {
-  const { isLoggedIn } = useHousehold();
+  const { isLoggedIn, authLoading } = useHousehold();
   const [activeTab, setActiveTab]         = useState(tabFromHash);
   const [settingsOpen, setSettingsOpen]   = useState(false);
   const [catEditorOpen, setCatEditorOpen] = useState(false);
@@ -40,6 +40,7 @@ export default function App() {
     setActiveTab(tab);
   }
 
+  if (authLoading) return null;
   if (!isLoggedIn) return <Setup />;
 
   return (

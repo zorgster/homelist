@@ -3,7 +3,7 @@ import { shortId } from '../../lib/crypto';
 
 export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) {
   const {
-    token, syncStatus,
+    token, syncStatus, authMode, firebaseUser,
     leaveHousehold, refreshHouseholdKey, toast,
   } = useHousehold();
 
@@ -36,6 +36,16 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
         </div>
 
         <div className="enc-badge">🔒 End-to-end encrypted · server sees only ciphertext</div>
+
+        {authMode === 'google' && firebaseUser ? (
+          <div className="auth-mode-badge google">
+            Signed in as {firebaseUser.email}
+          </div>
+        ) : (
+          <div className="auth-mode-badge anon">
+            ⚠ Anonymous — keep your join link safe
+          </div>
+        )}
 
         <div className={`fb-status${syncStatus === 'online' ? ' connected' : ''}`}>
           {syncStatus === 'online'   ? '✓ Synced with Firestore'

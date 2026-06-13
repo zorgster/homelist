@@ -1,11 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Household data is keyed by SHA-256(token) — unguessable without the secret.
-    // Anonymous auth is required so completely unauthenticated clients are blocked.
-    // All documents are client-side AES-GCM-256 encrypted; Firestore sees only ciphertext.
+    // Household data keyed by SHA-256(token) — unguessable without the secret.
+    // All documents are AES-GCM-256 encrypted client-side; server sees only ciphertext.
     match /households/{householdId}/{document=**} {
       allow read, write: if request.auth != null;
+    }
+    // Google users store their household token here for cross-device recovery.
+    // Only the authenticated user can read or write their own profile.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { collection, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import {
-  collection, doc, setDoc, onSnapshot,
-} from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
+  GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged,
+} from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import {
   genToken, tokenToHouseholdId, deriveEncKey, enc, dec, uid,
@@ -15,18 +15,21 @@ export const useHousehold = () => useContext(HouseholdCtx);
 
 export function HouseholdProvider({ children }) {
   // ── auth ──
-  const [token, setToken] = useState(null);
-  const [hhName, setHhName] = useState('My Household');
-  const [encKey, setEncKey] = useState(null);
-  const [householdId, setHouseholdId] = useState(null);
+  const [token, setToken]               = useState(null);
+  const [hhName, setHhName]             = useState('My Household');
+  const [encKey, setEncKey]             = useState(null);
+  const [householdId, setHouseholdId]   = useState(null);
   const [pendingJoinToken, setPendingJoinToken] = useState(null);
+  const [authMode, setAuthMode]         = useState(null); // 'google' | 'anonymous'
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [authLoading, setAuthLoading]   = useState(true);
 
   // ── data ──
-  const [items, setItems] = useState({});
-  const [cats, setCats] = useState(DEFAULT_CATS.map(c => ({ ...c })));
-  const [trades, setTrades] = useState({});
-  const [bdays, setBdays] = useState({});
-  const [todos, setTodos] = useState({});
+  const [items, setItems]       = useState({});
+  const [cats, setCats]         = useState(DEFAULT_CATS.map(c => ({ ...c })));
+  const [trades, setTrades]     = useState({});
+  const [bdays, setBdays]       = useState({});
+  const [todos, setTodos]       = useState({});
   const [todoCats, setTodoCats] = useState([...DEFAULT_TODO_CATS]);
 
   // ── sync ──
@@ -37,26 +40,25 @@ export function HouseholdProvider({ children }) {
   const toastTimer = useRef(null);
 
   // ── refs always current ──
-  const encKeyRef = useRef(null);
+  const encKeyRef      = useRef(null);
   const householdIdRef = useRef(null);
 
   useEffect(() => { encKeyRef.current = encKey; }, [encKey]);
   useEffect(() => { householdIdRef.current = householdId; }, [householdId]);
 
-  // ── toast ──
   function toast(msg) {
     setToastMsg(msg);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(''), 2800);
   }
 
-  // ── session persistence (token + name only — data lives in Firestore cache) ──
+  // ── session persistence (anonymous only — Google users store token in Firestore) ──
   useEffect(() => {
-    if (!token) return;
+    if (!token || authMode !== 'anonymous') return;
     storeSave('homelist-sess', { token, hhName });
-  }, [token, hhName]);
+  }, [token, hhName, authMode]);
 
-  // ── boot: restore session token ──
+  // ── boot: single auth state listener drives all session loading ──
   useEffect(() => {
     const frag = new URLSearchParams(location.hash.replace(/^#/, ''));
     const joinTok = frag.get('join');
@@ -65,17 +67,41 @@ export function HouseholdProvider({ children }) {
       setPendingJoinToken(joinTok);
     }
 
-    (async () => {
-      const sess = await storeLoad('homelist-sess');
-      if (sess?.token) {
-        const key = await deriveEncKey(sess.token);
-        const hid = await tokenToHouseholdId(sess.token);
-        setToken(sess.token);
-        setHhName(sess.hhName || 'My Household');
-        setEncKey(key);
-        setHouseholdId(hid);
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setAuthLoading(false);
+        return;
       }
-    })();
+      setFirebaseUser(user);
+
+      if (!user.isAnonymous) {
+        setAuthMode('google');
+        try {
+          const snap = await getDoc(doc(db, 'users', user.uid, 'profile', 'household'));
+          if (snap.exists() && snap.data().token) {
+            const tok = snap.data().token;
+            const key = await deriveEncKey(tok);
+            const hid = await tokenToHouseholdId(tok);
+            setToken(tok); setEncKey(key); setHouseholdId(hid);
+          }
+        } catch (e) {
+          console.warn('Failed to load Google user household:', e);
+        }
+      } else {
+        setAuthMode('anonymous');
+        const sess = await storeLoad('homelist-sess');
+        if (sess?.token) {
+          const key = await deriveEncKey(sess.token);
+          const hid = await tokenToHouseholdId(sess.token);
+          setToken(sess.token);
+          setHhName(sess.hhName || 'My Household');
+          setEncKey(key); setHouseholdId(hid);
+        }
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsub();
   }, []);
 
   // ── Firestore setup / teardown ──
@@ -140,19 +166,13 @@ export function HouseholdProvider({ children }) {
     }
 
     setSyncStatus('syncing');
-    signInAnonymously(auth).then(() => {
-      if (!mounted) return;
-      unsubs.push(makeCollListener('items',  setItems,  d => !!d.name));
-      unsubs.push(makeCollListener('trades', setTrades, d => !!d.name));
-      unsubs.push(makeCollListener('bdays',  setBdays,  d => !!d.name && !!d.date));
-      unsubs.push(makeCollListener('todos',  setTodos,  d => !!d.title));
-      unsubs.push(makeDocListener(['meta', 'cats'],     d => { if (Array.isArray(d) && d.length) setCats(d); }));
-      unsubs.push(makeDocListener(['meta', 'todoCats'], d => { if (Array.isArray(d) && d.length) setTodoCats(d); }));
-      unsubs.push(makeDocListener(['meta', 'hhName'],   d => { if (d.v) setHhName(d.v); }));
-    }).catch(e => {
-      console.warn('Firebase auth error:', e);
-      if (mounted) setSyncStatus('offline');
-    });
+    unsubs.push(makeCollListener('items',  setItems,  d => !!d.name));
+    unsubs.push(makeCollListener('trades', setTrades, d => !!d.name));
+    unsubs.push(makeCollListener('bdays',  setBdays,  d => !!d.name && !!d.date));
+    unsubs.push(makeCollListener('todos',  setTodos,  d => !!d.title));
+    unsubs.push(makeDocListener(['meta', 'cats'],     d => { if (Array.isArray(d) && d.length) setCats(d); }));
+    unsubs.push(makeDocListener(['meta', 'todoCats'], d => { if (Array.isArray(d) && d.length) setTodoCats(d); }));
+    unsubs.push(makeDocListener(['meta', 'hhName'],   d => { if (d.v) setHhName(d.v); }));
 
     return () => {
       mounted = false;
@@ -160,7 +180,18 @@ export function HouseholdProvider({ children }) {
     };
   }, [token, householdId, encKey]);
 
-  // ── Firestore write helper ──
+  // ── write helpers ──
+
+  async function ensureAuth() {
+    if (!auth.currentUser) await signInAnonymously(auth);
+  }
+
+  async function saveGoogleToken(tok) {
+    const user = auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    await setDoc(doc(db, 'users', user.uid, 'profile', 'household'), { token: tok });
+  }
+
   async function fsEncWrite(segments, payload) {
     const ek  = encKeyRef.current;
     const hid = householdIdRef.current;
@@ -173,9 +204,28 @@ export function HouseholdProvider({ children }) {
     }
   }
 
+  // ══ AUTH ACTIONS ══════════════════════════════════════════════════════════
+
+  async function signInWithGoogle() {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') toast('Google sign-in failed');
+    }
+  }
+
+  async function signInAnonymous() {
+    try {
+      await signInAnonymously(auth);
+    } catch {
+      toast('Sign-in failed — please try again');
+    }
+  }
+
   // ══ SETUP ACTIONS ══════════════════════════════════════════════════════════
 
   async function createHousehold(name) {
+    await ensureAuth();
     const tok = await genToken();
     const key = await deriveEncKey(tok);
     const hid = await tokenToHouseholdId(tok);
@@ -183,22 +233,31 @@ export function HouseholdProvider({ children }) {
     setToken(tok); setHhName(n); setEncKey(key); setHouseholdId(hid);
     setItems({}); setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTrades({});
     setBdays({}); setTodos({}); setTodoCats([...DEFAULT_TODO_CATS]);
+    await saveGoogleToken(tok);
     toast('Household created! Share the join link 🏠');
     return tok;
   }
 
   async function joinHousehold(tok, name) {
+    await ensureAuth();
     const key = await deriveEncKey(tok);
     const hid = await tokenToHouseholdId(tok);
     const n   = name || 'My Household';
     setToken(tok); setHhName(n); setEncKey(key); setHouseholdId(hid);
     setItems({}); setTrades({}); setBdays({}); setTodos({});
     setPendingJoinToken(null);
+    await saveGoogleToken(tok);
     toast('Joining household…');
   }
 
   async function leaveHousehold() {
     if (!confirm('Leave this household? Local data will be cleared.')) return;
+    const user = auth.currentUser;
+    if (user && !user.isAnonymous) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'profile', 'household'), { token: null });
+      } catch {}
+    }
     setToken(null); setHhName('My Household'); setEncKey(null); setHouseholdId(null);
     setItems({}); setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTrades({});
     setBdays({}); setTodos({}); setTodoCats([...DEFAULT_TODO_CATS]);
@@ -213,6 +272,7 @@ export function HouseholdProvider({ children }) {
     const hid = await tokenToHouseholdId(tok);
     setToken(tok); setEncKey(key); setHouseholdId(hid);
     setItems({}); setTrades({}); setBdays({}); setTodos({});
+    await saveGoogleToken(tok);
     toast('New key generated. Share the new join link.');
   }
 
@@ -328,8 +388,11 @@ export function HouseholdProvider({ children }) {
 
   const value = {
     token, hhName, householdId, isLoggedIn: !!token, pendingJoinToken,
+    authMode, firebaseUser, authLoading,
     items, cats, trades, bdays, todos, todoCats,
     syncStatus, toastMsg,
+    // auth
+    signInWithGoogle, signInAnonymous,
     // setup
     createHousehold, joinHousehold, leaveHousehold, refreshHouseholdKey,
     // shopping

@@ -1,25 +1,66 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useHousehold } from '../context/HouseholdContext';
 
+function Hero() {
+  return (
+    <div className="hero">
+      <div className="logo">home<em>list</em></div>
+      <p className="tagline">Your household, always in sync</p>
+    </div>
+  );
+}
+
 export default function Setup() {
-  const { createHousehold, joinHousehold, pendingJoinToken, toast } = useHousehold();
+  const {
+    createHousehold, joinHousehold, pendingJoinToken, toast,
+    signInWithGoogle, signInAnonymous,
+    authMode, firebaseUser,
+  } = useHousehold();
+
   const [hhName, setHhName]       = useState('');
   const [joinInput, setJoinInput] = useState('');
   const [parsedToken, setParsedToken] = useState(null);
   const [joinName, setJoinName]   = useState('');
 
-  // Pre-filled join from URL fragment
+  // ── Step 1: choose auth method ──
+  if (!firebaseUser) {
+    return (
+      <div id="setup">
+        <Hero />
+        <div className="card">
+          {pendingJoinToken && (
+            <div className="lock-badge">🔒 Encrypted join link detected</div>
+          )}
+          <button className="btn btn-primary" onClick={signInWithGoogle}>
+            Sign in with Google
+          </button>
+          <div className="divider">or</div>
+          <button className="btn btn-ghost" onClick={signInAnonymous}>
+            Continue without an account
+          </button>
+        </div>
+        <p className="setup-note">
+          Google sign-in lets you recover your household from any device.<br />
+          Without an account, your join link is the only way back in — keep it safe.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Pending join (auth established) ──
   if (pendingJoinToken) {
     return (
       <div id="setup">
-        <div className="hero">
-          <div className="logo">home<em>list</em></div>
-          <p className="tagline">Your household, always in sync</p>
-        </div>
+        <Hero />
         <div className="card">
           <div className="lock-badge">
-            🔒 Encrypted join link detected — your list is end-to-end encrypted
+            🔒 Encrypted join link — your list is end-to-end encrypted
           </div>
+          {authMode === 'anonymous' && (
+            <div className="anon-warning">
+              ⚠ You're joining without an account. Save your join link — it's the only way to reconnect if you clear your browser data.
+            </div>
+          )}
           <div className="group">
             <label>Your name for this household</label>
             <input
@@ -36,10 +77,14 @@ export default function Setup() {
             Join household →
           </button>
         </div>
-        <p className="setup-note">The join link contains your encrypted household secret.</p>
+        {authMode === 'google' && firebaseUser && (
+          <p className="setup-note">Signed in as {firebaseUser.email}</p>
+        )}
       </div>
     );
   }
+
+  // ── Step 2: create or join household ──
 
   function parseJoinInput(val) {
     setJoinInput(val);
@@ -65,10 +110,12 @@ export default function Setup() {
 
   return (
     <div id="setup">
-      <div className="hero">
-        <div className="logo">home<em>list</em></div>
-        <p className="tagline">Your household, always in sync</p>
-      </div>
+      <Hero />
+      {authMode === 'anonymous' && (
+        <div className="anon-warning">
+          ⚠ Without an account, your join link is the only way back in. Store it somewhere safe after creating your household.
+        </div>
+      )}
       <div className="card">
         <div className="group">
           <label>Create a new household</label>
@@ -86,11 +133,11 @@ export default function Setup() {
         </div>
         <div className="divider">or join an existing one</div>
         <div className="group">
-          <label>Paste a join link</label>
+          <label>Paste a join link or household key</label>
           <input
             className="join-paste"
             type="text"
-            placeholder="Paste the join link your household shared…"
+            placeholder="Paste a join link or enter the household key…"
             value={joinInput}
             onChange={e => parseJoinInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleJoin()}
@@ -104,9 +151,13 @@ export default function Setup() {
           </button>
         </div>
       </div>
-      <p className="setup-note">
-        No account needed. Data is end-to-end encrypted — the server never sees plaintext.
-      </p>
+      {authMode === 'google' && firebaseUser ? (
+        <p className="setup-note">Signed in as {firebaseUser.email}</p>
+      ) : (
+        <p className="setup-note">
+          Data is end-to-end encrypted — the server never sees plaintext.
+        </p>
+      )}
     </div>
   );
 }

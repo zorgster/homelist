@@ -4,7 +4,13 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInAnonymously,
+  onAuthStateChanged,
+} from 'firebase/auth';
 
 const app = initializeApp({
   apiKey:            import.meta.env.VITE_FB_API_KEY,
@@ -22,3 +28,4 @@ export const db = initializeFirestore(app, {
 });
 
 export const auth = getAuth(app);
+export { GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged };

@@ -86,6 +86,10 @@ input::placeholder { color: var(--muted); }
 details.setup-advanced[open] summary::before { transform: rotate(90deg); }
 .join-paste { font-size: .78rem !important; padding: 10px 12px !important; word-break: break-all; }
 .lock-badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(74,222,128,.08); border: 1px solid var(--green); border-radius: 10px; color: var(--green); font-size: .8rem; line-height: 1.4; }
+.anon-warning { padding: 10px 14px; background: rgba(251,191,36,.08); border: 1px solid #F59E0B; border-radius: 10px; color: #F59E0B; font-size: .78rem; line-height: 1.5; }
+.auth-mode-badge { padding: 8px 12px; border-radius: 8px; font-size: .75rem; }
+.auth-mode-badge.google { background: rgba(74,222,128,.08); border: 1px solid var(--green); color: var(--green); }
+.auth-mode-badge.anon { background: rgba(251,191,36,.08); border: 1px solid #F59E0B; color: #F59E0B; }
 
 /* ── HEADER ── */
 header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
