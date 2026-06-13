@@ -15,7 +15,7 @@ function WordInput({ value, onChange, onEnter, placeholder, autoFocus }) {
   return (
     <input
       type="text"
-      placeholder={placeholder || 'three words, e.g. horse waffle somerset'}
+      placeholder={placeholder || 'four words, e.g. horse waffle somerset'}
       value={value}
       autoFocus={autoFocus}
       autoComplete="off"
@@ -58,7 +58,7 @@ export default function Setup() {
         </div>
         <p className="setup-note">
           Google sign-in lets you recover your household from any device.<br />
-          Without an account, your three-word key is the only way back in.
+          Without an account, your four-word key is the only way back in — remember it.
         </p>
       </div>
     );
@@ -75,7 +75,7 @@ export default function Setup() {
           </div>
           {authMode === 'anonymous' && (
             <div className="anon-warning">
-              ⚠ Without an account, your three-word key is the only way back in if you clear your browser data.
+              ⚠ Without an account, your four-word key is the only way back in if you clear your browser data.
             </div>
           )}
           <div className="group">
@@ -115,7 +115,7 @@ export default function Setup() {
       tok = new URLSearchParams(joinWords.split('#')[1]).get('join') || null;
     }
     if (!tok) tok = normalizePassphrase(joinWords);
-    if (!tok) { toast('Enter at least three words to join'); return; }
+    if (!tok) { toast('Enter at least four words to join'); return; }
     await joinHousehold(tok, 'My Household');
   }
 
@@ -124,7 +124,7 @@ export default function Setup() {
       <Hero />
       {authMode === 'anonymous' && (
         <div className="anon-warning">
-          ⚠ Without an account, your three-word key is the only way back in. Remember it.
+          ⚠ Without an account, your four-word key is the only way back in. Remember it.
         </div>
       )}
       <div className="card">
@@ -152,12 +152,12 @@ export default function Setup() {
         </div>
         <div className="divider">or join an existing one</div>
         <div className="group">
-          <label>Join with three words or a join link</label>
+          <label>Join with four words or a join link</label>
           <WordInput
             value={joinWords}
             onChange={setJoinWords}
             onEnter={handleJoin}
-            placeholder="your three words or paste a join link…"
+            placeholder="your four words or paste a join link…"
           />
           <button
             className="btn btn-ghost"

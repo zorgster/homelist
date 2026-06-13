@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { collection, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import {
-  GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged,
+  GoogleAuthProvider, signInWithPopup, linkWithPopup,
+  signInAnonymously, onAuthStateChanged,
 } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import {
@@ -222,6 +223,18 @@ export function HouseholdProvider({ children }) {
     }
   }
 
+  async function linkWithGoogle() {
+    try {
+      const result = await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+      setFirebaseUser(result.user);
+      setAuthMode('google');
+      await saveGoogleToken(token);
+      toast('Google account linked — your household is now recoverable ✓');
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') toast('Google link failed');
+    }
+  }
+
   // ══ SETUP ACTIONS ══════════════════════════════════════════════════════════
 
   async function createHousehold(name, passphrase) {
@@ -395,7 +408,7 @@ export function HouseholdProvider({ children }) {
     items, cats, trades, bdays, todos, todoCats,
     syncStatus, toastMsg,
     // auth
-    signInWithGoogle, signInAnonymous,
+    signInWithGoogle, signInAnonymous, linkWithGoogle,
     // setup
     createHousehold, joinHousehold, leaveHousehold, refreshHouseholdKey,
     // shopping

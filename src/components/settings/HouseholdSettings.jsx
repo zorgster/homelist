@@ -4,7 +4,7 @@ import { shortId } from '../../lib/crypto';
 export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) {
   const {
     token, syncStatus, authMode, firebaseUser,
-    leaveHousehold, refreshHouseholdKey, toast,
+    leaveHousehold, refreshHouseholdKey, linkWithGoogle, toast,
   } = useHousehold();
 
   function copyJoinLink() {
@@ -42,9 +42,14 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
             Signed in as {firebaseUser.email}
           </div>
         ) : (
-          <div className="auth-mode-badge anon">
-            ⚠ Anonymous — keep your join link safe
-          </div>
+          <>
+            <div className="auth-mode-badge anon">
+              ⚠ Anonymous — your four-word key is the only way back in
+            </div>
+            <button className="btn btn-ghost" onClick={linkWithGoogle}>
+              Link Google account →
+            </button>
+          </>
         )}
 
         <div className={`fb-status${syncStatus === 'online' ? ' connected' : ''}`}>
