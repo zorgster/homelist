@@ -16,7 +16,7 @@ export function normalizePassphrase(input) {
   const words = (input || '').trim().toLowerCase()
     .split(/[\s\-_,]+/)
     .filter(w => /^[a-z]+$/.test(w));
-  return words.length >= 3 ? words.slice(0, 3).join('-') : null;
+  return words.length >= 4 ? words.slice(0, 4).join('-') : null;
 }
 
 export async function tokenToHouseholdId(tok) {
