@@ -3,7 +3,7 @@ import { useHousehold } from '../../context/HouseholdContext';
 import { URGENCY } from '../../lib/constants';
 import TodoSheet from './TodoSheet';
 
-export default function TodoTab() {
+export default function TodoTab({ active }) {
   const { todos, todoCats, toggleTodoDone, deleteTodo } = useHousehold();
   const [showDone,   setShowDone]   = useState(false);
   const [selCat,     setSelCat]     = useState(null);
@@ -92,7 +92,7 @@ export default function TodoTab() {
   }
 
   return (
-    <div className="tab-panel active" style={{ position: 'relative' }}>
+    <div className={`tab-panel${active ? ' active' : ''}`} style={{ position: 'relative' }}>
       <div className="todo-toolbar">
         <div className="todo-filter-scroll">
           <div

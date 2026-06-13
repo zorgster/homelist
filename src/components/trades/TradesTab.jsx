@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useHousehold } from '../../context/HouseholdContext';
 import TradeSheet from './TradeSheet';
 
-export default function TradesTab() {
+export default function TradesTab({ active }) {
   const { trades, deleteTrade } = useHousehold();
   const [sheetOpen,  setSheetOpen]  = useState(false);
   const [editId,     setEditId]     = useState(null);
@@ -20,7 +20,7 @@ export default function TradesTab() {
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   return (
-    <div className="tab-panel active" style={{ position: 'relative' }}>
+    <div className={`tab-panel${active ? ' active' : ''}`} style={{ position: 'relative' }}>
       <div id="trades-list">
         {list.length === 0 ? (
           <div className="empty">

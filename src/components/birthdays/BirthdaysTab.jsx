@@ -35,7 +35,7 @@ function countdownLabel(days) {
   return null;
 }
 
-export default function BirthdaysTab() {
+export default function BirthdaysTab({ active }) {
   const { bdays, deleteBday } = useHousehold();
   const [sheetOpen,   setSheetOpen]   = useState(false);
   const [editId,      setEditId]      = useState(null);
@@ -97,7 +97,7 @@ export default function BirthdaysTab() {
   });
 
   return (
-    <div className="tab-panel active" style={{ position: 'relative' }}>
+    <div className={`tab-panel${active ? ' active' : ''}`} style={{ position: 'relative' }}>
       <div id="bday-list">
         {list.length === 0 ? (
           <div className="empty">

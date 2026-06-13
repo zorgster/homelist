@@ -3,7 +3,7 @@ import {
   collection, doc, setDoc, onSnapshot,
 } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { initFirebase } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import {
   genToken, tokenToHouseholdId, deriveEncKey, enc, dec, uid,
 } from '../lib/crypto';
@@ -29,8 +29,7 @@ export function HouseholdProvider({ children }) {
   const [todos, setTodos] = useState({});
   const [todoCats, setTodoCats] = useState([...DEFAULT_TODO_CATS]);
 
-  // ── firebase / sync ──
-  const [firebaseConfig, setFirebaseConfigState] = useState(null);
+  // ── sync ──
   const [syncStatus, setSyncStatus] = useState('offline');
 
   // ── toast ──
@@ -38,10 +37,8 @@ export function HouseholdProvider({ children }) {
   const toastTimer = useRef(null);
 
   // ── refs always current ──
-  const dbRef = useRef(null);
   const encKeyRef = useRef(null);
   const householdIdRef = useRef(null);
-  const saveTimer = useRef(null);
 
   useEffect(() => { encKeyRef.current = encKey; }, [encKey]);
   useEffect(() => { householdIdRef.current = householdId; }, [householdId]);
@@ -53,16 +50,13 @@ export function HouseholdProvider({ children }) {
     toastTimer.current = setTimeout(() => setToastMsg(''), 2800);
   }
 
-  // ── session persistence (debounced) ──
+  // ── session persistence (token + name only — data lives in Firestore cache) ──
   useEffect(() => {
     if (!token) return;
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      storeSave('homelist-sess', { token, hhName, items, cats, trades, bdays, todos, todoCats });
-    }, 400);
-  }, [token, hhName, items, cats, trades, bdays, todos, todoCats]);
+    storeSave('homelist-sess', { token, hhName });
+  }, [token, hhName]);
 
-  // ── boot: load session + firebase config ──
+  // ── boot: restore session token ──
   useEffect(() => {
     const frag = new URLSearchParams(location.hash.replace(/^#/, ''));
     const joinTok = frag.get('join');
@@ -80,22 +74,13 @@ export function HouseholdProvider({ children }) {
         setHhName(sess.hhName || 'My Household');
         setEncKey(key);
         setHouseholdId(hid);
-        if (sess.items)              setItems(sess.items);
-        if (sess.cats?.length)       setCats(sess.cats);
-        if (sess.trades)             setTrades(sess.trades);
-        if (sess.bdays)              setBdays(sess.bdays);
-        if (sess.todos)              setTodos(sess.todos);
-        if (sess.todoCats?.length)   setTodoCats(sess.todoCats);
       }
-      const fbConf = await storeLoad('homelist-firebase-config');
-      if (fbConf) setFirebaseConfigState(fbConf);
     })();
   }, []);
 
   // ── Firestore setup / teardown ──
   useEffect(() => {
-    if (!token || !householdId || !encKey || !firebaseConfig) {
-      dbRef.current = null;
+    if (!token || !householdId || !encKey) {
       setSyncStatus('offline');
       return;
     }
@@ -106,7 +91,7 @@ export function HouseholdProvider({ children }) {
 
     function makeCollListener(colName, setter, validate) {
       return onSnapshot(
-        collection(dbRef.current, 'households', householdId, colName),
+        collection(db, 'households', householdId, colName),
         async snap => {
           if (!mounted) return;
           const ek = encKeyRef.current;
@@ -145,7 +130,7 @@ export function HouseholdProvider({ children }) {
 
     function makeDocListener(docPath, onData) {
       return onSnapshot(
-        doc(dbRef.current, 'households', householdId, ...docPath),
+        doc(db, 'households', householdId, ...docPath),
         async snap => {
           if (!mounted || !snap.exists()) return;
           const data = await dec(snap.data().c, encKeyRef.current);
@@ -155,42 +140,34 @@ export function HouseholdProvider({ children }) {
     }
 
     setSyncStatus('syncing');
-    initFirebase(firebaseConfig).then(({ db, auth }) => {
+    signInAnonymously(auth).then(() => {
       if (!mounted) return;
-      dbRef.current = db;
-
-      signInAnonymously(auth).then(() => {
-        if (!mounted) return;
-        unsubs.push(makeCollListener('items',  setItems,  d => !!d.name));
-        unsubs.push(makeCollListener('trades', setTrades, d => !!d.name));
-        unsubs.push(makeCollListener('bdays',  setBdays,  d => !!d.name && !!d.date));
-        unsubs.push(makeCollListener('todos',  setTodos,  d => !!d.title));
-        unsubs.push(makeDocListener(['meta', 'cats'],     d => { if (Array.isArray(d) && d.length) setCats(d); }));
-        unsubs.push(makeDocListener(['meta', 'todoCats'], d => { if (Array.isArray(d) && d.length) setTodoCats(d); }));
-        unsubs.push(makeDocListener(['meta', 'hhName'],   d => { if (d.v) setHhName(d.v); }));
-      }).catch(e => {
-        console.warn('Firebase auth error:', e);
-        if (mounted) { setSyncStatus('offline'); toast('Firebase sign-in failed — check config or enable Anonymous Auth.'); }
-      });
+      unsubs.push(makeCollListener('items',  setItems,  d => !!d.name));
+      unsubs.push(makeCollListener('trades', setTrades, d => !!d.name));
+      unsubs.push(makeCollListener('bdays',  setBdays,  d => !!d.name && !!d.date));
+      unsubs.push(makeCollListener('todos',  setTodos,  d => !!d.title));
+      unsubs.push(makeDocListener(['meta', 'cats'],     d => { if (Array.isArray(d) && d.length) setCats(d); }));
+      unsubs.push(makeDocListener(['meta', 'todoCats'], d => { if (Array.isArray(d) && d.length) setTodoCats(d); }));
+      unsubs.push(makeDocListener(['meta', 'hhName'],   d => { if (d.v) setHhName(d.v); }));
     }).catch(e => {
-      console.warn('Firebase init error:', e);
-      if (mounted) { setSyncStatus('offline'); toast('Firebase init failed — check your config.'); }
+      console.warn('Firebase auth error:', e);
+      if (mounted) setSyncStatus('offline');
     });
 
     return () => {
       mounted = false;
       unsubs.forEach(fn => fn());
     };
-  }, [token, householdId, encKey, firebaseConfig]);
+  }, [token, householdId, encKey]);
 
   // ── Firestore write helper ──
   async function fsEncWrite(segments, payload) {
     const ek  = encKeyRef.current;
     const hid = householdIdRef.current;
-    if (!dbRef.current || !hid || !ek) return;
+    if (!hid || !ek) return;
     try {
       const c = await enc(payload, ek);
-      await setDoc(doc(dbRef.current, 'households', hid, ...segments), { c });
+      await setDoc(doc(db, 'households', hid, ...segments), { c });
     } catch (e) {
       console.warn('Firestore write failed:', e);
     }
@@ -206,7 +183,6 @@ export function HouseholdProvider({ children }) {
     setToken(tok); setHhName(n); setEncKey(key); setHouseholdId(hid);
     setItems({}); setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTrades({});
     setBdays({}); setTodos({}); setTodoCats([...DEFAULT_TODO_CATS]);
-    await storeSave('homelist-sess', { token: tok, hhName: n, items: {}, cats: DEFAULT_CATS, trades: {}, bdays: {}, todos: {}, todoCats: DEFAULT_TODO_CATS });
     toast('Household created! Share the join link 🏠');
     return tok;
   }
@@ -218,7 +194,6 @@ export function HouseholdProvider({ children }) {
     setToken(tok); setHhName(n); setEncKey(key); setHouseholdId(hid);
     setItems({}); setTrades({}); setBdays({}); setTodos({});
     setPendingJoinToken(null);
-    await storeSave('homelist-sess', { token: tok, hhName: n, items: {}, cats: DEFAULT_CATS, trades: {}, bdays: {}, todos: {}, todoCats: DEFAULT_TODO_CATS });
     toast('Joining household…');
   }
 
@@ -238,24 +213,7 @@ export function HouseholdProvider({ children }) {
     const hid = await tokenToHouseholdId(tok);
     setToken(tok); setEncKey(key); setHouseholdId(hid);
     setItems({}); setTrades({}); setBdays({}); setTodos({});
-    await storeSave('homelist-sess', { token: tok, hhName, items: {}, cats, trades: {}, bdays: {}, todos: {}, todoCats });
     toast('New key generated. Share the new join link.');
-  }
-
-  // ══ FIREBASE CONFIG ════════════════════════════════════════════════════════
-
-  async function saveFirebaseConfig(config) {
-    await storeSave('homelist-firebase-config', config);
-    setFirebaseConfigState(config);
-    toast('Firebase connected!');
-  }
-
-  async function clearFirebaseConfig() {
-    await storeDel('homelist-firebase-config');
-    setFirebaseConfigState(null);
-    dbRef.current = null;
-    setSyncStatus('offline');
-    toast('Firebase disconnected — local only mode');
   }
 
   // ══ SHOPPING ═══════════════════════════════════════════════════════════════
@@ -288,7 +246,9 @@ export function HouseholdProvider({ children }) {
       toDelete.forEach(id => delete next[id]);
       return next;
     });
-    await Promise.all(toDelete.map(id => fsEncWrite(['items', id], { _deleted: true, name: null, _dev: DEVICE_ID })));
+    await Promise.all(toDelete.map(id =>
+      fsEncWrite(['items', id], { _deleted: true, name: null, _dev: DEVICE_ID })
+    ));
     toast(`Cleared ${toDelete.length} item${toDelete.length > 1 ? 's' : ''}`);
   }
 
@@ -369,11 +329,9 @@ export function HouseholdProvider({ children }) {
   const value = {
     token, hhName, householdId, isLoggedIn: !!token, pendingJoinToken,
     items, cats, trades, bdays, todos, todoCats,
-    syncStatus, firebaseConfig, toastMsg,
+    syncStatus, toastMsg,
     // setup
     createHousehold, joinHousehold, leaveHousehold, refreshHouseholdKey,
-    // firebase config
-    saveFirebaseConfig, clearFirebaseConfig,
     // shopping
     addItem, toggleItem, deleteItem, clearChecked,
     // categories

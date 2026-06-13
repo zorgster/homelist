@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useHousehold } from '../../context/HouseholdContext';
 
-export default function ShoppingTab() {
+export default function ShoppingTab({ active }) {
   const { items, cats, addItem, toggleItem, deleteItem, clearChecked } = useHousehold();
   const [name, setName]     = useState('');
   const [qty, setQty]       = useState('');
@@ -29,7 +29,7 @@ export default function ShoppingTab() {
   function catFor(id) { return cats.find(c => c.id === id); }
 
   return (
-    <div className="tab-panel active" style={{ position: 'relative' }}>
+    <div className={`tab-panel${active ? ' active' : ''}`} style={{ position: 'relative' }}>
       <div className="add-form">
         <div className="add-row">
           <input
