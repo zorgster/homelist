@@ -5,7 +5,7 @@ import {
 } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import {
-  genToken, tokenToHouseholdId, deriveEncKey, enc, dec, uid,
+  genToken, normalizePassphrase, tokenToHouseholdId, deriveEncKey, enc, dec, uid,
 } from '../lib/crypto';
 import { storeSave, storeLoad, storeDel } from '../lib/storage';
 import { DEFAULT_CATS, DEFAULT_TODO_CATS, DEVICE_ID } from '../lib/constants';
@@ -224,9 +224,9 @@ export function HouseholdProvider({ children }) {
 
   // ══ SETUP ACTIONS ══════════════════════════════════════════════════════════
 
-  async function createHousehold(name) {
+  async function createHousehold(name, passphrase) {
     await ensureAuth();
-    const tok = await genToken();
+    const tok = passphrase || genToken();
     const key = await deriveEncKey(tok);
     const hid = await tokenToHouseholdId(tok);
     const n   = name || 'My Household';
@@ -234,7 +234,7 @@ export function HouseholdProvider({ children }) {
     setItems({}); setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTrades({});
     setBdays({}); setTodos({}); setTodoCats([...DEFAULT_TODO_CATS]);
     await saveGoogleToken(tok);
-    toast('Household created! Share the join link 🏠');
+    toast('Household created! Share your key with your household 🏠');
     return tok;
   }
 
@@ -266,14 +266,17 @@ export function HouseholdProvider({ children }) {
   }
 
   async function refreshHouseholdKey() {
-    if (!confirm('Generate a new household key? All current members will need the new join link.')) return;
-    const tok = await genToken();
+    const input = window.prompt('Enter 3 new words for your household key (e.g. horse waffle somerset):');
+    if (!input) return;
+    const tok = normalizePassphrase(input);
+    if (!tok) { toast('Please enter at least 3 words'); return; }
+    if (!confirm(`New key will be "${tok}". All members will need to rejoin. Continue?`)) return;
     const key = await deriveEncKey(tok);
     const hid = await tokenToHouseholdId(tok);
     setToken(tok); setEncKey(key); setHouseholdId(hid);
     setItems({}); setTrades({}); setBdays({}); setTodos({});
     await saveGoogleToken(tok);
-    toast('New key generated. Share the new join link.');
+    toast('New key set. Share your new words with your household.');
   }
 
   // ══ SHOPPING ═══════════════════════════════════════════════════════════════

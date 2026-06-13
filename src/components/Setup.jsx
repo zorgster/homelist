@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useHousehold } from '../context/HouseholdContext';
+import { genToken, normalizePassphrase, shortId } from '../lib/crypto';
 
 function Hero() {
   return (
@@ -10,6 +11,22 @@ function Hero() {
   );
 }
 
+function WordInput({ value, onChange, onEnter, placeholder, autoFocus }) {
+  return (
+    <input
+      type="text"
+      placeholder={placeholder || 'three words, e.g. horse waffle somerset'}
+      value={value}
+      autoFocus={autoFocus}
+      autoComplete="off"
+      autoCapitalize="none"
+      spellCheck={false}
+      onChange={e => onChange(e.target.value)}
+      onKeyDown={e => e.key === 'Enter' && onEnter?.()}
+    />
+  );
+}
+
 export default function Setup() {
   const {
     createHousehold, joinHousehold, pendingJoinToken, toast,
@@ -17,9 +34,9 @@ export default function Setup() {
     authMode, firebaseUser,
   } = useHousehold();
 
+  const [generated, setGenerated] = useState(() => genToken());
   const [hhName, setHhName]       = useState('');
-  const [joinInput, setJoinInput] = useState('');
-  const [parsedToken, setParsedToken] = useState(null);
+  const [joinWords, setJoinWords] = useState('');
   const [joinName, setJoinName]   = useState('');
 
   // ── Step 1: choose auth method ──
@@ -41,13 +58,13 @@ export default function Setup() {
         </div>
         <p className="setup-note">
           Google sign-in lets you recover your household from any device.<br />
-          Without an account, your join link is the only way back in — keep it safe.
+          Without an account, your three-word key is the only way back in.
         </p>
       </div>
     );
   }
 
-  // ── Pending join (auth established) ──
+  // ── Pending join via URL fragment ──
   if (pendingJoinToken) {
     return (
       <div id="setup">
@@ -58,7 +75,7 @@ export default function Setup() {
           </div>
           {authMode === 'anonymous' && (
             <div className="anon-warning">
-              ⚠ You're joining without an account. Save your join link — it's the only way to reconnect if you clear your browser data.
+              ⚠ Without an account, your three-word key is the only way back in if you clear your browser data.
             </div>
           )}
           <div className="group">
@@ -84,28 +101,22 @@ export default function Setup() {
     );
   }
 
-  // ── Step 2: create or join household ──
-
-  function parseJoinInput(val) {
-    setJoinInput(val);
-    setParsedToken(null);
-    try {
-      let frag = val;
-      if (val.includes('#')) frag = val.split('#')[1];
-      const p = new URLSearchParams(frag);
-      const t = p.get('join') || (val.trim().length > 15 && !val.includes(' ') ? val.trim() : null);
-      if (t) setParsedToken(t);
-    } catch {}
-  }
+  // ── Step 2: create or join ──
 
   async function handleCreate() {
-    if (!hhName.trim()) { toast('Please enter a household name'); return; }
-    await createHousehold(hhName.trim());
+    if (!hhName.trim()) { toast('Enter a name for your household'); return; }
+    await createHousehold(hhName.trim(), generated);
   }
 
   async function handleJoin() {
-    if (!parsedToken) { toast('Paste a valid join link first'); return; }
-    await joinHousehold(parsedToken, 'My Household');
+    // Accept a join URL or raw words
+    let tok = null;
+    if (joinWords.includes('#')) {
+      tok = new URLSearchParams(joinWords.split('#')[1]).get('join') || null;
+    }
+    if (!tok) tok = normalizePassphrase(joinWords);
+    if (!tok) { toast('Enter at least three words to join'); return; }
+    await joinHousehold(tok, 'My Household');
   }
 
   return (
@@ -113,19 +124,27 @@ export default function Setup() {
       <Hero />
       {authMode === 'anonymous' && (
         <div className="anon-warning">
-          ⚠ Without an account, your join link is the only way back in. Store it somewhere safe after creating your household.
+          ⚠ Without an account, your three-word key is the only way back in. Remember it.
         </div>
       )}
       <div className="card">
         <div className="group">
           <label>Create a new household</label>
+          <div className="generated-key">
+            <span>{shortId(generated)}</span>
+            <button className="regen-btn" onClick={() => setGenerated(genToken())} title="Generate new words">↻</button>
+          </div>
+          <small style={{ color: 'var(--muted)', fontSize: '.72rem' }}>
+            Your household key — share these words to invite someone
+          </small>
           <input
             type="text"
-            placeholder="e.g. The Smiths"
+            placeholder="Household name, e.g. The Smiths"
             maxLength={30}
             value={hhName}
             onChange={e => setHhName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            autoFocus
           />
           <button className="btn btn-primary" onClick={handleCreate}>
             Create household →
@@ -133,19 +152,17 @@ export default function Setup() {
         </div>
         <div className="divider">or join an existing one</div>
         <div className="group">
-          <label>Paste a join link or household key</label>
-          <input
-            className="join-paste"
-            type="text"
-            placeholder="Paste a join link or enter the household key…"
-            value={joinInput}
-            onChange={e => parseJoinInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleJoin()}
+          <label>Join with three words or a join link</label>
+          <WordInput
+            value={joinWords}
+            onChange={setJoinWords}
+            onEnter={handleJoin}
+            placeholder="your three words or paste a join link…"
           />
           <button
             className="btn btn-ghost"
             onClick={handleJoin}
-            style={{ opacity: parsedToken ? 1 : 0.4, pointerEvents: parsedToken ? 'auto' : 'none' }}
+            style={{ opacity: joinWords.trim() ? 1 : 0.4, pointerEvents: joinWords.trim() ? 'auto' : 'none' }}
           >
             Join household →
           </button>
@@ -154,9 +171,7 @@ export default function Setup() {
       {authMode === 'google' && firebaseUser ? (
         <p className="setup-note">Signed in as {firebaseUser.email}</p>
       ) : (
-        <p className="setup-note">
-          Data is end-to-end encrypted — the server never sees plaintext.
-        </p>
+        <p className="setup-note">Data is end-to-end encrypted — the server never sees plaintext.</p>
       )}
     </div>
   );

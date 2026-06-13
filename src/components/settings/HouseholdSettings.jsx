@@ -32,7 +32,7 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
 
         <div className="short-id">
           {shortId(token)}
-          <small>Household short ID (display only)</small>
+          <small>Household key — share this to invite someone</small>
         </div>
 
         <div className="enc-badge">🔒 End-to-end encrypted · server sees only ciphertext</div>

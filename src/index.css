@@ -86,6 +86,9 @@ input::placeholder { color: var(--muted); }
 details.setup-advanced[open] summary::before { transform: rotate(90deg); }
 .join-paste { font-size: .78rem !important; padding: 10px 12px !important; word-break: break-all; }
 .lock-badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(74,222,128,.08); border: 1px solid var(--green); border-radius: 10px; color: var(--green); font-size: .8rem; line-height: 1.4; }
+.generated-key { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 12px; font-family: var(--ff-d); font-size: 1.1rem; letter-spacing: .04em; color: var(--text); }
+.regen-btn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: color var(--ease); }
+.regen-btn:hover { color: var(--accent); }
 .anon-warning { padding: 10px 14px; background: rgba(251,191,36,.08); border: 1px solid #F59E0B; border-radius: 10px; color: #F59E0B; font-size: .78rem; line-height: 1.5; }
 .auth-mode-badge { padding: 8px 12px; border-radius: 8px; font-size: .75rem; }
 .auth-mode-badge.google { background: rgba(74,222,128,.08); border: 1px solid var(--green); color: var(--green); }

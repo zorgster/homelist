@@ -1,7 +1,22 @@
-export async function genToken() {
-  const b = crypto.getRandomValues(new Uint8Array(20));
-  return btoa(String.fromCharCode(...b))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+import raw from './wordlist.txt?raw';
+const WORDLIST = raw.trim().split('\n');
+
+// Pick 4 random words from the BIP39 wordlist using the browser CSPRNG.
+// 2048 words → 2048^4 ≈ 2^44 combinations before PBKDF2 hardening.
+export function genToken() {
+  const idx = new Uint32Array(4);
+  crypto.getRandomValues(idx);
+  return Array.from(idx).map(n => WORDLIST[n % WORDLIST.length]).join('-');
+}
+
+// Normalise a user-typed passphrase into a canonical token.
+// Accepts words separated by spaces, dashes, or commas.
+// Returns "word1-word2-word3" or null if fewer than 3 alpha words found.
+export function normalizePassphrase(input) {
+  const words = (input || '').trim().toLowerCase()
+    .split(/[\s\-_,]+/)
+    .filter(w => /^[a-z]+$/.test(w));
+  return words.length >= 3 ? words.slice(0, 3).join('-') : null;
 }
 
 export async function tokenToHouseholdId(tok) {
@@ -38,7 +53,10 @@ export async function dec(b64, key) {
 }
 
 export function shortId(tok) {
-  const t = (tok || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 9).padEnd(9, '·');
+  const words = (tok || '').split('-').filter(w => w.length > 0);
+  if (words.length >= 2) return words.join(' · ');
+  // fallback for any legacy token format
+  const t = (tok || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().padEnd(9, '·');
   return `${t.slice(0, 3)} ${t.slice(3, 6)} ${t.slice(6, 9)}`;
 }
 
