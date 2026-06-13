@@ -36,7 +36,7 @@ function countdownLabel(days) {
 }
 
 export default function BirthdaysTab({ active }) {
-  const { bdays, deleteBday } = useHousehold();
+  const { bdays, deleteBday, canEdit } = useHousehold();
   const [sheetOpen,   setSheetOpen]   = useState(false);
   const [editId,      setEditId]      = useState(null);
   const [openNotes,   setOpenNotes]   = useState({});
@@ -78,8 +78,8 @@ export default function BirthdaysTab({ active }) {
           {b.tel && (
             <a className="bday-call" href={`tel:${b.tel}`} onClick={e => e.stopPropagation()}>📞</a>
           )}
-          <button className="bday-edit" onClick={e => { e.stopPropagation(); openSheet(b.id); }}>✏️</button>
-          <button className="bday-del"  onClick={e => { e.stopPropagation(); deleteBday(b.id); }}>🗑</button>
+          {canEdit && <button className="bday-edit" onClick={e => { e.stopPropagation(); openSheet(b.id); }}>✏️</button>}
+          {canEdit && <button className="bday-del"  onClick={e => { e.stopPropagation(); deleteBday(b.id); }}>🗑</button>}
         </div>
       </div>
     );
@@ -139,7 +139,7 @@ export default function BirthdaysTab({ active }) {
         )}
       </div>
 
-      <button className="fab" onClick={() => openSheet(null)}>+</button>
+      {canEdit && <button className="fab" onClick={() => openSheet(null)}>+</button>}
       <BirthdaySheet editId={editId} isOpen={sheetOpen} onClose={closeSheet} />
     </div>
   );

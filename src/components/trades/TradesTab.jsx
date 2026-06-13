@@ -3,7 +3,7 @@ import { useHousehold } from '../../context/HouseholdContext';
 import TradeSheet from './TradeSheet';
 
 export default function TradesTab({ active }) {
-  const { trades, deleteTrade } = useHousehold();
+  const { trades, deleteTrade, canEdit } = useHousehold();
   const [sheetOpen,  setSheetOpen]  = useState(false);
   const [editId,     setEditId]     = useState(null);
   const [openNotes,  setOpenNotes]  = useState({});
@@ -58,8 +58,8 @@ export default function TradesTab({ active }) {
                   </>
                 )}
                 <div className="trade-footer">
-                  <button className="trade-edit-btn" onClick={() => openSheet(t.id)}>✏️ Edit</button>
-                  <button className="trade-del-btn"  onClick={() => deleteTrade(t.id)}>🗑 Remove</button>
+                  {canEdit && <button className="trade-edit-btn" onClick={() => openSheet(t.id)}>✏️ Edit</button>}
+                  {canEdit && <button className="trade-del-btn"  onClick={() => deleteTrade(t.id)}>🗑 Remove</button>}
                 </div>
               </div>
             );
@@ -67,7 +67,7 @@ export default function TradesTab({ active }) {
         )}
       </div>
 
-      <button className="fab" onClick={() => openSheet(null)}>+</button>
+      {canEdit && <button className="fab" onClick={() => openSheet(null)}>+</button>}
       <TradeSheet editId={editId} isOpen={sheetOpen} onClose={closeSheet} />
     </div>
   );

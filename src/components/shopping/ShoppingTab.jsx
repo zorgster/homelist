@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useHousehold } from '../../context/HouseholdContext';
 
 export default function ShoppingTab({ active }) {
-  const { items, cats, addItem, toggleItem, deleteItem, clearChecked } = useHousehold();
+  const { items, cats, addItem, toggleItem, deleteItem, clearChecked, canEdit } = useHousehold();
   const [name, setName]     = useState('');
   const [qty, setQty]       = useState('');
   const [selCat, setSelCat] = useState(null);
@@ -30,7 +30,7 @@ export default function ShoppingTab({ active }) {
 
   return (
     <div className={`tab-panel${active ? ' active' : ''}`} style={{ position: 'relative' }}>
-      <div className="add-form">
+      {canEdit && <div className="add-form">
         <div className="add-row">
           <input
             ref={nameRef}
@@ -63,7 +63,7 @@ export default function ShoppingTab({ active }) {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
 
       <div id="shop-list">
         {all.length === 0 ? (
@@ -73,11 +73,11 @@ export default function ShoppingTab({ active }) {
           </div>
         ) : (
           <>
-            {unchecked.map(item => <ShopItem key={item.id} item={item} catFor={catFor} onToggle={toggleItem} onDelete={deleteItem} />)}
+            {unchecked.map(item => <ShopItem key={item.id} item={item} catFor={catFor} onToggle={toggleItem} onDelete={canEdit ? deleteItem : null} />)}
             {checked.length > 0 && (
               <>
                 <div className="sec-head">Checked ({checked.length})</div>
-                {checked.map(item => <ShopItem key={item.id} item={item} catFor={catFor} onToggle={toggleItem} onDelete={deleteItem} />)}
+                {checked.map(item => <ShopItem key={item.id} item={item} catFor={catFor} onToggle={toggleItem} onDelete={canEdit ? deleteItem : null} />)}
               </>
             )}
           </>
@@ -85,7 +85,7 @@ export default function ShoppingTab({ active }) {
       </div>
 
       <div className="shop-foot">
-        <button className="clear-btn" onClick={clearChecked}>Clear checked</button>
+        {canEdit && <button className="clear-btn" onClick={clearChecked}>Clear checked</button>}
         <span className="count">
           {all.length ? `${checked.length} / ${all.length} done` : ''}
         </span>
@@ -112,12 +112,9 @@ function ShopItem({ item, catFor, onToggle, onDelete }) {
           </div>
         )}
       </div>
-      <button
-        className="del-btn"
-        onClick={e => { e.stopPropagation(); onDelete(item.id); }}
-      >
-        ✕
-      </button>
+      {onDelete && (
+        <button className="del-btn" onClick={e => { e.stopPropagation(); onDelete(item.id); }}>✕</button>
+      )}
     </div>
   );
 }

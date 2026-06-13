@@ -32,7 +32,7 @@ export default function Setup() {
     createHousehold, knockOnHousehold, withdrawKnock,
     pendingJoinToken, isKnocking, hhName, token,
     emailLinkSent, needsEmailForLink,
-    toast, signInWithGoogle, signInAnonymous,
+    toast, signInWithGoogle, signInAnonymous, signOutUser,
     sendMagicLink, completeEmailLink,
     authMode, firebaseUser,
   } = useHousehold();
@@ -299,6 +299,12 @@ export default function Setup() {
       </div>
       {firebaseUser?.email && (
         <p className="setup-note">Signed in as {firebaseUser.email}</p>
+      )}
+      {isAnon && (
+        <p className="setup-note">
+          Want to create a household?{' '}
+          <button className="inline-link" onClick={signOutUser}>Sign in →</button>
+        </p>
       )}
     </div>
   );

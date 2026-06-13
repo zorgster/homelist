@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useHousehold } from '../../context/HouseholdContext';
 import { shortId } from '../../lib/crypto';
 
@@ -13,10 +14,13 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
     token, hhName, syncStatus, authMode, firebaseUser,
     myRole, members, pendingMembers,
     leaveHousehold, linkWithGoogle,
-    copyJoinLink, closeDoorbell,
-    approveMember, rejectKnock, removeMember, updateMemberRole, transferPrimary,
+    copyJoinLink,
+    approveMember, rejectKnock, removeMember, updateMemberRole, renameMember, transferPrimary,
     toast,
   } = useHousehold();
+
+  const [editingUid, setEditingUid] = useState(null);
+  const [editName, setEditName]     = useState('');
 
   const canInvite  = myRole === 'primary' || myRole === 'admin';
   const isPrimary  = myRole === 'primary';
@@ -103,7 +107,28 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
               return (
                 <div key={m.uid} className="member-row">
                   <div className="member-info">
-                    <span className="member-name">{m.name}{isSelf ? ' (you)' : ''}</span>
+                    {canInvite && editingUid === m.uid ? (
+                      <input
+                        className="member-name-input"
+                        value={editName}
+                        autoFocus
+                        maxLength={30}
+                        onChange={e => setEditName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { renameMember(m.uid, editName); setEditingUid(null); }
+                          if (e.key === 'Escape') setEditingUid(null);
+                        }}
+                        onBlur={() => { renameMember(m.uid, editName); setEditingUid(null); }}
+                      />
+                    ) : (
+                      <span
+                        className={`member-name${canInvite ? ' editable' : ''}`}
+                        onClick={() => { if (canInvite) { setEditingUid(m.uid); setEditName(m.name); } }}
+                        title={canInvite ? 'Click to rename' : undefined}
+                      >
+                        {m.name}{isSelf ? ' (you)' : ''}
+                      </span>
+                    )}
                     <span className={`role-badge ${info.badge}`}>{info.label}</span>
                   </div>
                   {canInvite && !isSelf && m.role !== 'primary' && (

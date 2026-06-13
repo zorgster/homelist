@@ -4,7 +4,7 @@ import { URGENCY } from '../../lib/constants';
 import TodoSheet from './TodoSheet';
 
 export default function TodoTab({ active }) {
-  const { todos, todoCats, toggleTodoDone, deleteTodo } = useHousehold();
+  const { todos, todoCats, toggleTodoDone, deleteTodo, canEdit } = useHousehold();
   const [showDone,   setShowDone]   = useState(false);
   const [selCat,     setSelCat]     = useState(null);
   const [sheetOpen,  setSheetOpen]  = useState(false);
@@ -81,12 +81,14 @@ export default function TodoTab({ active }) {
         {t.desc && expanded && (
           <div className="todo-full-desc open">{t.desc}</div>
         )}
-        <div className="todo-card-foot">
-          <div className="todo-foot-actions">
-            <button className="todo-act-btn" onClick={() => openSheet(t.id)}>✏️ Edit</button>
+        {canEdit && (
+          <div className="todo-card-foot">
+            <div className="todo-foot-actions">
+              <button className="todo-act-btn" onClick={() => openSheet(t.id)}>✏️ Edit</button>
+            </div>
+            <button className="todo-del-btn" onClick={() => deleteTodo(t.id)}>🗑 Delete</button>
           </div>
-          <button className="todo-del-btn" onClick={() => deleteTodo(t.id)}>🗑 Delete</button>
-        </div>
+        )}
       </div>
     );
   }
@@ -140,7 +142,7 @@ export default function TodoTab({ active }) {
         )}
       </div>
 
-      <button className="fab" onClick={() => openSheet(null)}>+</button>
+      {canEdit && <button className="fab" onClick={() => openSheet(null)}>+</button>}
 
       <TodoSheet editId={editId} isOpen={sheetOpen} onClose={closeSheet} />
     </div>

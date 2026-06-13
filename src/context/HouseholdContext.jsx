@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore';
 import {
   GoogleAuthProvider, signInWithPopup, linkWithPopup,
-  signInAnonymously, onAuthStateChanged,
+  signInAnonymously, signOut, onAuthStateChanged,
   sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
 } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
@@ -346,6 +346,18 @@ export function HouseholdProvider({ children }) {
     catch { toast('Sign-in failed — please try again'); }
   }
 
+  async function signOutUser() {
+    await storeDel('homelist-households');
+    await signOut(auth);
+    setFirebaseUser(null); setAuthMode(null);
+    setToken(null); setHhName('My Household'); setEncKey(null);
+    setHouseholdId(null); setMyRole(null); setMyHouseholds([]);
+    setMembers({}); setPendingMembers({}); setIsKnocking(false);
+    setItems({}); setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTrades({});
+    setBdays({}); setTodos({}); setTodoCats([...DEFAULT_TODO_CATS]);
+    setSyncStatus('offline');
+  }
+
   async function sendMagicLink(email) {
     try {
       await sendSignInLinkToEmail(auth, email, {
@@ -579,6 +591,13 @@ export function HouseholdProvider({ children }) {
     toast('Role updated ✓');
   }
 
+  async function renameMember(memberUid, newName) {
+    const hid = householdIdRef.current;
+    if (!hid || !newName.trim()) return;
+    await setDoc(doc(db, 'households', hid, 'members', memberUid), { name: newName.trim() }, { merge: true });
+    toast('Name updated ✓');
+  }
+
   async function transferPrimary(memberUid) {
     const hid   = householdIdRef.current;
     const myUid = auth.currentUser?.uid;
@@ -728,14 +747,15 @@ export function HouseholdProvider({ children }) {
     items, cats, trades, bdays, todos, todoCats,
     syncStatus, toastMsg,
     emailLinkSent, needsEmailForLink,
+    canEdit: myRole !== 'viewer' && !!encKey,
     // auth
-    signInWithGoogle, signInAnonymous, linkWithGoogle,
+    signInWithGoogle, signInAnonymous, signOutUser, linkWithGoogle,
     sendMagicLink, completeEmailLink,
     // household
     createHousehold, knockOnHousehold, withdrawKnock, leaveHousehold, switchHousehold,
     // invite
     copyJoinLink, openDoorbell,
-    approveMember, rejectKnock, removeMember, updateMemberRole, transferPrimary,
+    approveMember, rejectKnock, removeMember, updateMemberRole, renameMember, transferPrimary,
     // shopping
     addItem, toggleItem, deleteItem, clearChecked,
     saveCats,

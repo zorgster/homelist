@@ -230,6 +230,9 @@ header { flex-shrink: 0; display: flex; align-items: center; justify-content: sp
 .member-row { padding: 8px 10px; border-radius: 10px; background: var(--surface2); margin-bottom: 5px; }
 .member-info { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .member-name { font-size: .85rem; font-weight: 500; flex: 1; }
+.member-name.editable { cursor: pointer; border-bottom: 1px dashed var(--border); }
+.member-name.editable:hover { border-bottom-color: var(--accent); color: var(--accent); }
+.member-name-input { background: none; border: none; border-bottom: 1.5px solid var(--accent); color: var(--text); font-family: var(--ff-b); font-size: .85rem; font-weight: 500; outline: none; padding: 0; width: 120px; }
 .role-badge { font-size: .65rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
 .badge-primary { background: rgba(232,168,56,.15); color: var(--accent); border: 1px solid rgba(232,168,56,.3); }
 .badge-admin   { background: rgba(74,222,128,.1);  color: var(--green);  border: 1px solid rgba(74,222,128,.25); }
@@ -238,6 +241,7 @@ header { flex-shrink: 0; display: flex; align-items: center; justify-content: sp
 .member-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .role-select { background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; color: var(--text); font-size: .72rem; padding: 3px 6px; cursor: pointer; }
 .btn-danger { color: var(--red) !important; }
+.inline-link { background: none; border: none; color: var(--accent); cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
 .btn-danger:active { border-color: var(--red) !important; }
 
 /* ── CAT EDITOR ── */
