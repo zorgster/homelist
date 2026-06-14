@@ -120,10 +120,12 @@ export function HouseholdProvider({ children }) {
   const toastTimer = useRef(null);
 
   // ── always-current refs ──
-  const encKeyRef      = useRef(null);
-  const householdIdRef = useRef(null);
+  const encKeyRef        = useRef(null);
+  const householdIdRef   = useRef(null);
+  const myHouseholdsRef  = useRef([]);
   useEffect(() => { encKeyRef.current = encKey; }, [encKey]);
   useEffect(() => { householdIdRef.current = householdId; }, [householdId]);
+  useEffect(() => { myHouseholdsRef.current = myHouseholds; }, [myHouseholds]);
 
   function toast(msg) {
     setToastMsg(msg);
@@ -239,6 +241,35 @@ export function HouseholdProvider({ children }) {
     );
     return () => unsubs.forEach(u => u());
   }, [pendingHids, firebaseUser?.uid]);
+
+  // ── Watch own membership — instant ejection if removed ──
+  useEffect(() => {
+    if (!householdId || !encKey || !firebaseUser) return;
+    let isFirst = true;
+    const unsub = onSnapshot(
+      doc(db, 'households', householdId, 'members', firebaseUser.uid),
+      async snap => {
+        if (isFirst) { isFirst = false; return; } // skip initial load
+        if (snap.exists()) return; // still a member
+        // Removed by someone else — eject immediately
+        const hid = householdIdRef.current;
+        toast('You have been removed from this household');
+        await forgetHousehold(auth.currentUser, hid);
+        const remaining = myHouseholdsRef.current.filter(h => h.hid !== hid && h.status === 'active');
+        setMyHouseholds(prev => prev.filter(h => h.hid !== hid));
+        setToken(null); setEncKey(null); setHouseholdId(null);
+        setMyRole(null); setMembers({}); setPendingMembers({});
+        setItems({}); setTrades({}); setBdays({}); setTodos({});
+        setCats(DEFAULT_CATS.map(c => ({ ...c }))); setTodoCats([...DEFAULT_TODO_CATS]);
+        setSyncStatus('offline');
+        if (remaining.length > 0) {
+          const next = [...remaining].sort((a, b) => (b.lastVisited || 0) - (a.lastVisited || 0))[0];
+          await resumeSession(auth.currentUser, next);
+        }
+      }
+    );
+    return () => unsub();
+  }, [householdId, encKey, firebaseUser?.uid]);
 
   // ── Firestore data listeners (active household only) ──
   useEffect(() => {
