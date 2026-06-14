@@ -28,7 +28,7 @@ export default function HouseholdSettings({ isOpen, onClose, onOpenCatEditor }) 
     const order = { primary: 0, admin: 1, editor: 2, viewer: 3 };
     return (order[a.role] ?? 4) - (order[b.role] ?? 4);
   });
-  const pendingList = Object.values(pendingMembers);
+  const pendingList = Object.values(pendingMembers).filter(p => p.uid !== firebaseUser?.uid);
 
   async function handleLeave() {
     onClose();

@@ -225,6 +225,10 @@ export function HouseholdProvider({ children }) {
           ));
           await persistHousehold(firebaseUser, hid, tok, name, 'active');
 
+          // Clean up own pending doc (approver's batch may have already done this,
+        // but offline cache can serve stale data — delete again to be sure)
+          try { await deleteDoc(doc(db, 'households', hid, 'pending', firebaseUser.uid)); } catch {}
+
           if (householdIdRef.current === hid) {
             // This is the one we're waiting at full-screen
             try {
@@ -592,14 +596,19 @@ export function HouseholdProvider({ children }) {
     const hid   = householdIdRef.current;
     const myUid = auth.currentUser?.uid;
     if (!hid) return;
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'households', hid, 'members', knockerUid), {
-      role, name: knockerName, joinedAt: Date.now(), invitedBy: myUid,
-    });
-    batch.delete(doc(db, 'households', hid, 'pending', knockerUid));
-    batch.set(doc(db, 'households', hid, 'profile', 'meta'), { inviteOpen: false }, { merge: true });
-    await batch.commit();
-    toast(`${knockerName} has been let in ✓`);
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'households', hid, 'members', knockerUid), {
+        role, name: knockerName, joinedAt: Date.now(), invitedBy: myUid,
+      });
+      batch.delete(doc(db, 'households', hid, 'pending', knockerUid));
+      batch.set(doc(db, 'households', hid, 'profile', 'meta'), { inviteOpen: false }, { merge: true });
+      await batch.commit();
+      toast(`${knockerName} has been let in ✓`);
+    } catch (e) {
+      console.warn('approveMember failed:', e);
+      toast('Failed to approve — check your connection');
+    }
   }
 
   async function rejectKnock(knockerUid) {
