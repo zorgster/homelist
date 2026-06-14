@@ -61,8 +61,8 @@ export default function BirthdaySheet({ editId, isOpen, onClose }) {
             />
           </div>
           <div>
-            <span className="form-label">Birthday</span>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <label className="form-label" htmlFor="bday-date">Birthday</label>
+            <input id="bday-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
             <p style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: 5 }}>
               Year is optional — leave as 1900 if unknown
             </p>

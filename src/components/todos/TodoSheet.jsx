@@ -101,8 +101,8 @@ export default function TodoSheet({ editId, isOpen, onClose }) {
             </div>
           </div>
           <div>
-            <span className="form-label">Due date (optional)</span>
-            <input type="date" value={due} onChange={e => setDue(e.target.value)} />
+            <label className="form-label" htmlFor="todo-due">Due date (optional)</label>
+            <input id="todo-due" type="date" value={due} onChange={e => setDue(e.target.value)} />
           </div>
         </div>
 
