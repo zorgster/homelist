@@ -343,15 +343,20 @@ export function HouseholdProvider({ children }) {
       if (firebaseUser && mems[firebaseUser.uid]) setMyRole(mems[firebaseUser.uid].role);
     }));
 
-    unsubs.push(onSnapshot(collection(db, 'households', householdId, 'pending'), snap => {
-      if (!mounted) return;
+    return () => { mounted = false; unsubs.forEach(fn => fn()); };
+  }, [householdId, encKey]);
+
+  // ── Pending knocks — admin/primary only ──
+  useEffect(() => {
+    if (!householdId || !encKey) return;
+    if (myRole !== 'primary' && myRole !== 'admin') { setPendingMembers({}); return; }
+    const unsub = onSnapshot(collection(db, 'households', householdId, 'pending'), snap => {
       const pend = {};
       snap.docs.forEach(d => { pend[d.id] = { uid: d.id, ...d.data() }; });
       setPendingMembers(pend);
-    }));
-
-    return () => { mounted = false; unsubs.forEach(fn => fn()); };
-  }, [householdId, encKey]);
+    });
+    return () => unsub();
+  }, [householdId, encKey, myRole]);
 
   // ── write helpers ──
 
